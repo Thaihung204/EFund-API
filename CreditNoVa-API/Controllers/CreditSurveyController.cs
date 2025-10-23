@@ -1,11 +1,14 @@
 ﻿using EFund_API.Models;
 using EFund_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace EFund_API.Controllers
 {
     [ApiController]
     [Route("api/survey")]
+    [Authorize]
     public class CreditSurveyController : ControllerBase
     {
         private readonly ICreditSurveyService _service;

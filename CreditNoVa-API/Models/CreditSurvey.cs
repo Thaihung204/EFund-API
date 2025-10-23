@@ -1,12 +1,16 @@
-﻿using System;
+﻿using EFund_API.WebApp.Models;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using EFund_API.WebApp.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EFund_API.Models
 {
     public class CreditSurvey : Entity<Guid>
     {
+        [ForeignKey(nameof(User))]
+        public Guid UserId { get; set; }
+        public User User { get; set; }
         // 🔹 Nhóm 1: Thông tin cá nhân
         #region Personal Information
         [Required, MaxLength(100)]

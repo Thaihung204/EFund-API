@@ -6,13 +6,18 @@ using EFund_API.WebApp.Models;
 using EFund_API.WebApp.Services.Interfaces;
 using EFund_API.WebApp.Services.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace EFund_API.Services
 {
     public class CreditSurveyService : BaseService,  ICreditSurveyService
     {
-        public CreditSurveyService(IRepository repo) : base(repo)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
+        public CreditSurveyService(IRepository repo, IHttpContextAccessor httpContextAccessor) : base(repo)
         {
+            _httpContextAccessor = httpContextAccessor;
         }
    
         public async Task<IEnumerable<CreditSurvey>> GetAllAsync()
@@ -27,9 +32,15 @@ namespace EFund_API.Services
 
         public async Task<CreditSurvey> CreateAsync(EFund_API.DataTransferObjects.CreditSurvey dto)
         {
+            // Lấy UserId từ JWT token
+            var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                throw new UnauthorizedAccessException("User not authenticated");
+
             var survey = new CreditSurvey
             {
                 Id = Guid.NewGuid(),
+                UserId = userId,
                 // 🔹 Nhóm 1: Personal Information
                 FullName = dto.FullName,
                 DateOfBirth = dto.DateOfBirth,

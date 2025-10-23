@@ -3,6 +3,9 @@ using EFund_API.WebApp.Models;
 using EFund_API.Services.Interfaces;
 using EFund_API.Services;
 using EFund_API.WebApp.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace EFund_API
 {
@@ -26,7 +29,27 @@ namespace EFund_API
             // Đăng ký repository & service
             builder.Services.AddScoped<IRepository, EntityFrameworkRepository<EFundContext>>();
             builder.Services.AddScoped<ICreditSurveyService, CreditSurveyService>();
+            builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddHttpContextAccessor();
+
+            // JWT Authentication
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                        ValidAudience = builder.Configuration["Jwt:Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    };
+                });
+
+            builder.Services.AddAuthorization();
 
             // Đăng ký CORS trước khi build app
             builder.Services.AddCors(options =>
@@ -54,6 +77,7 @@ namespace EFund_API
             // Dùng CORS
             app.UseCors("AllowFrontend");
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
