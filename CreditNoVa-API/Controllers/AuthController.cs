@@ -2,6 +2,7 @@ using EFund_API.DataTransferObjects;
 using EFund_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EFund_API.Controllers
 {
@@ -42,12 +43,11 @@ namespace EFund_API.Controllers
             return Ok(result);
         }
 
-
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout()
         {
-            var success = await _authService.LogoutAsync("");
+            await _authService.LogoutAsync("");
             return Ok(new { message = "Đăng xuất thành công" });
         }
 
@@ -55,7 +55,7 @@ namespace EFund_API.Controllers
         [Authorize]
         public async Task<ActionResult<UserInfo>> GetCurrentUser()
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
                 return Unauthorized();
 
@@ -72,10 +72,87 @@ namespace EFund_API.Controllers
             var isValid = await _authService.ValidateTokenAsync(request.Token);
             return Ok(new { isValid });
         }
+
+        // ✅ 1. Đổi mật khẩu
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var success = await _authService.ChangePasswordAsync(userId, request.OldPassword, request.NewPassword);
+            if (!success)
+                return BadRequest(new { message = "Mật khẩu cũ không đúng" });
+
+            return Ok(new { message = "Đổi mật khẩu thành công" });
+        }
+
+        // ✅ 2. Quên mật khẩu
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var result = await _authService.ForgotPasswordAsync(request.Email);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new
+            {
+                message = result.Message,
+                tempPassword = result.TempPassword
+            });
+        }
+
+
+        // ✅ 3. Vô hiệu hóa tài khoản
+        [HttpPost("deactivate")]
+        [Authorize]
+        public async Task<IActionResult> DeactivateAccount()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                return Unauthorized();
+
+            var success = await _authService.DeactivateAccountAsync(userId);
+            if (!success)
+                return BadRequest(new { message = "Không thể vô hiệu hóa tài khoản" });
+
+            return Ok(new { message = "Tài khoản đã bị vô hiệu hóa" });
+        }
+
+        // ✅ 4. Kích hoạt lại tài khoản
+        [HttpPost("reactivate")]
+        public async Task<IActionResult> ReactivateAccount([FromBody] ReactivateRequest request)
+        {
+            var success = await _authService.ReactivateAccountAsync(request.UserId);
+            if (!success)
+                return NotFound(new { message = "Không tìm thấy người dùng để kích hoạt lại" });
+
+            return Ok(new { message = "Tài khoản đã được kích hoạt lại" });
+        }
     }
 
     public class ValidateTokenRequest
     {
         public string Token { get; set; }
     }
+
+    public class ChangePasswordRequest
+    {
+        public string OldPassword { get; set; }
+        public string NewPassword { get; set; }
+    }
+
+    public class ForgotPasswordRequest
+    {
+        public string Email { get; set; }
+    }
+
+    public class ReactivateRequest
+    {
+        public Guid UserId { get; set; }
+    }
+ 
+
 }

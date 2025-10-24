@@ -1,15 +1,13 @@
 using EFund_API.DataTransferObjects;
+using EFund_API.Dtos;
 using EFund_API.Models;
 using EFund_API.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using EFund_API.WebApp.Services.Interfaces;
+using EFund_API.WebApp.Services.Services;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
-using BCrypt.Net;
-using EFund_API.WebApp.Services.Services;
-using EFund_API.WebApp.Services.Interfaces;
 
 namespace EFund_API.Services
 {
@@ -18,7 +16,7 @@ namespace EFund_API.Services
         private readonly IConfiguration _configuration;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(IRepository repo, IConfiguration configuration, IHttpContextAccessor httpContextAccessor) 
+        public AuthService(IRepository repo, IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
             : base(repo)
         {
             _configuration = configuration;
@@ -38,7 +36,6 @@ namespace EFund_API.Services
 
         public async Task<AuthResponse?> RegisterAsync(RegisterRequest request)
         {
-            // Kiểm tra email và username đã tồn tại
             var users = await Repo.GetAllAsync<User>();
             var existingUser = users.FirstOrDefault(u => u.Email == request.Email || u.Username == request.Username);
 
@@ -67,10 +64,9 @@ namespace EFund_API.Services
             return await GenerateAuthResponseAsync(user);
         }
 
-
         public Task<bool> LogoutAsync(string refreshToken)
         {
-            // Không cần xử lý gì vì không dùng refresh token
+            // Không dùng refresh token, nên chỉ trả về true
             return Task.FromResult(true);
         }
 
@@ -171,6 +167,76 @@ namespace EFund_API.Services
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
         }
+
+        public async Task<bool> ChangePasswordAsync(Guid userId, string oldPassword, string newPassword)
+        {
+            var user = await Repo.GetByIdAsync<User>(userId);
+            if (user == null || !BCrypt.Net.BCrypt.Verify(oldPassword, user.PasswordHash))
+                return false;
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            Repo.Update(user);
+            await Repo.SaveAsync();
+            return true;
+        }
+
+        public async Task<ForgotPasswordResponse> ForgotPasswordAsync(string email)
+        {
+            var users = await Repo.GetAllAsync<User>();
+            var user = users.FirstOrDefault(u => u.Email == email && u.IsActive);
+
+            if (user == null)
+            {
+                return new ForgotPasswordResponse
+                {
+                    Success = false,
+                    Message = "Email không tồn tại hoặc tài khoản đã bị vô hiệu hóa."
+                };
+            }
+
+            // Tạo mật khẩu tạm thời 8 ký tự
+            var tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
+
+            // Hash lại password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+            Repo.Update(user);
+            await Repo.SaveAsync();
+
+            // Log để test demo
+            Console.WriteLine($"[DEMO] Temporary password for {email}: {tempPassword}");
+
+            // Trả response đầy đủ
+            return new ForgotPasswordResponse
+            {
+                Success = true,
+                Message = "Mật khẩu tạm thời đã được tạo.",
+                TempPassword = tempPassword
+            };
+        }
+
+
+        public async Task<bool> DeactivateAccountAsync(Guid userId)
+        {
+            var user = await Repo.GetByIdAsync<User>(userId);
+            if (user == null) return false;
+
+            user.IsActive = false;
+            Repo.Update(user);
+            await Repo.SaveAsync();
+            return true;
+        }
+
+        public async Task<bool> ReactivateAccountAsync(Guid userId)
+        {
+            var user = await Repo.GetByIdAsync<User>(userId);
+            if (user == null) return false;
+
+            user.IsActive = true;
+            Repo.Update(user);
+            await Repo.SaveAsync();
+            return true;
+        }
+
 
     }
 }
