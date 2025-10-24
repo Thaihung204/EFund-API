@@ -14,7 +14,7 @@ namespace EFund_API.Models
         public Guid? GoalId { get; set; }
 
         [Required, MaxLength(20)]
-        public string Type { get; set; } // income, expense, saving
+        public string Type { get; set; } 
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }

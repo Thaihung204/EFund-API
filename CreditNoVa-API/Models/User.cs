@@ -42,8 +42,6 @@ namespace EFund_API.Models
 
         // Authentication fields
 
-        // 🔗 Navigation Properties
-        public ICollection<CreditSurvey> CreditSurveys { get; set; } = new List<CreditSurvey>();
         public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public ICollection<SavingGoal> SavingGoals { get; set; } = new List<SavingGoal>();
         public ICollection<Message> Messages { get; set; } = new List<Message>();
