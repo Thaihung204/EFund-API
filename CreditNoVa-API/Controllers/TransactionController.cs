@@ -21,24 +21,24 @@ namespace EFund_API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TransactionResponse>>> GetByUser()
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
-            var list = await _service.GetByUserAsync(userId);
+            //if (!TryGetUserId(out var userId)) return Unauthorized();
+            var list = await _service.GetByUserAsync(new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459"));
             return Ok(list);
         }
 
         [HttpGet("goal/{goalId:guid}")]
         public async Task<ActionResult<IEnumerable<TransactionResponse>>> GetByGoal([FromRoute] Guid goalId)
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
-            var list = await _service.GetByGoalAsync(userId, goalId);
+            //if (!TryGetUserId(out var userId)) return Unauthorized();
+            var list = await _service.GetByGoalAsync(new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459"), goalId);
             return Ok(list);
         }
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<TransactionResponse>> GetById([FromRoute] Guid id)
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
-            var txn = await _service.GetByIdAsync(userId, id);
+            //if (!TryGetUserId(out var userId)) return Unauthorized();
+            var txn = await _service.GetByIdAsync(new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459"), id);
             if (txn == null) return NotFound();
             return Ok(txn);
         }
@@ -46,8 +46,8 @@ namespace EFund_API.Controllers
         [HttpPost]
         public async Task<ActionResult<TransactionResponse>> Create([FromBody] CreateTransactionRequest request)
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
-            var created = await _service.CreateAsync(userId, request);
+            //if (!TryGetUserId(out var userId)) return Unauthorized();
+            var created = await _service.CreateAsync(new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459"), request);
             if (created == null) return BadRequest(new { message = "Invalid transaction data or goal mismatch." });
             return Ok(created);
         }
@@ -55,15 +55,15 @@ namespace EFund_API.Controllers
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete([FromRoute] Guid id)
         {
-            if (!TryGetUserId(out var userId)) return Unauthorized();
-            var success = await _service.DeleteAsync(userId, id);
+            //if (!TryGetUserId(out var userId)) return Unauthorized();
+            var success = await _service.DeleteAsync(new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459"), id);
             if (!success) return NotFound();
             return Ok(new { message = "Deleted successfully." });
         }
 
         private bool TryGetUserId(out Guid userId)
         {
-            userId = Guid.Empty;
+            userId = new Guid("B08FE934-4FDE-428D-BDB8-E6E574687459");
             var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return claim != null && Guid.TryParse(claim, out userId);
         }

@@ -22,11 +22,11 @@ namespace EFund_API
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            // Đăng ký DbContext
+            // DbContext
             builder.Services.AddDbContext<EFundContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("EFundDb")));
 
-            // Đăng ký repository & service
+            // Repository & Services
             builder.Services.AddScoped<IRepository, EntityFrameworkRepository<EFundContext>>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<ISavingGoalService, SavingGoalService>();
@@ -34,25 +34,58 @@ namespace EFund_API
             builder.Services.AddHttpContextAccessor();
 
             // JWT Authentication
-            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            builder.Services
+                .AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                })
                 .AddJwtBearer(options =>
                 {
+                    options.SaveToken = true; // keep token available in HttpContext if needed
                     options.TokenValidationParameters = new TokenValidationParameters
                     {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? string.Empty)),
                         ValidateIssuer = true,
                         ValidateAudience = true,
                         ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
+                        ClockSkew = TimeSpan.Zero,
                         ValidIssuer = builder.Configuration["Jwt:Issuer"],
                         ValidAudience = builder.Configuration["Jwt:Audience"],
-                        IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                        RequireExpirationTime = true
+                    };
+
+                    // Optional: read token from query (useful for SignalR/WebSocket) and store UserId
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            // Default supports Authorization: Bearer <token>. This enables access_token in query if needed.
+                            var accessToken = context.Request.Query["access_token"];
+                            if (!string.IsNullOrEmpty(accessToken) && string.IsNullOrEmpty(context.Token))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        },
+                        OnTokenValidated = context =>
+                        {
+                            // Make UserId easily accessible in middleware/controller if desired
+                            var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                            if (!string.IsNullOrEmpty(userId))
+                            {
+                                context.HttpContext.Items["UserId"] = userId;
+                            }
+                            return Task.CompletedTask;
+                        }
                     };
                 });
 
             builder.Services.AddAuthorization();
 
-            // Đăng ký CORS trước khi build app
+            // CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend", policy =>
@@ -60,7 +93,6 @@ namespace EFund_API
                     policy.AllowAnyOrigin()
                           .AllowAnyHeader()
                           .AllowAnyMethod();
-                    // Chú ý: AllowCredentials() không thể dùng cùng AllowAnyOrigin()
                 });
             });
 
@@ -75,7 +107,6 @@ namespace EFund_API
 
             app.UseHttpsRedirection();
 
-            // Dùng CORS
             app.UseCors("AllowFrontend");
 
             app.UseAuthentication();
