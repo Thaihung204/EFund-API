@@ -29,6 +29,8 @@ namespace EFund_API
             // Đăng ký repository & service
             builder.Services.AddScoped<IRepository, EntityFrameworkRepository<EFundContext>>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<ISavingGoalService, SavingGoalService>();
+            builder.Services.AddScoped<ITransactionService, TransactionService>();
             builder.Services.AddHttpContextAccessor();
 
             // JWT Authentication
